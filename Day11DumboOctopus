@@ -1,0 +1,207 @@
+public TMPro.TMP_Text D11DebugOutput;
+
+[Button]
+void D11P1(int numProgressions)
+{
+    var path = Application.dataPath + "/AdventOfCode/11.txt";
+    string[] data = System.IO.File.ReadAllLines(path);
+    int sizeX = data[0].Length, sizeY = data.Length;
+    Flasher.totalFlashes = 0;
+
+
+    Flasher.flasherGrid = new Flasher[sizeY, sizeX];
+    Flasher.sizeX = sizeX;
+    Flasher.sizeY = sizeY;
+
+    LoopArr(MakeFlashers);
+    LoopArr(GetNeighbours);
+
+    //p2 win condition
+    string allZeroes = "";
+    for (int i = 0; i < 100; i++)
+    {
+        allZeroes = string.Concat(allZeroes, "0");
+    }
+
+
+    StartCoroutine(OutputProgression());
+
+    IEnumerator OutputProgression()
+    {
+        for (int i = 0; i < numProgressions; i++)
+        {
+            LoopArr(AddPointToFlashers);
+            for (int j = 0; j < 25; j++)
+            {
+                LoopArr(DoValidFlashes);
+            }
+            // Make debug text field
+            D11DebugOutput.text = "";
+            LoopArr(AppendOutput);
+
+            // p2 answer
+            // compare debug text to win condition text
+            if (D11DebugOutput.text.Equals(allZeroes)) {
+                print("all zeroes at i = " + (i + 1));
+            }
+
+            // preparation for next flashing round
+            LoopArr(ResetFlashes);
+            // use higher value for bug hunting
+            yield return new WaitForSeconds(0.1f);
+        }
+
+        print(Flasher.totalFlashes);
+    }
+
+
+    // helpers and cmds
+
+    void LoopArr(Action<int, int> action)
+    {
+        for (int i = 0; i < sizeY; i++)
+        {
+            for (int j = 0; j < sizeX; j++)
+            {
+                action(i, j);
+            }
+        }
+    }
+
+    void GetNeighbours(int i, int j)
+    {
+        Flasher.flasherGrid[i, j].GetNeighbours();
+    }
+
+    void MakeFlashers(int i, int j)
+    {
+        Flasher.flasherGrid[i, j] = new Flasher(x: j, y: i, stage: (int)char.GetNumericValue(data[i][j]));
+    }
+
+    void AddPointToFlashers(int i, int j)
+    {
+        Flasher.flasherGrid[i, j].AddPoint();
+    }
+
+    void GetNeighbourCounts(int i, int j)
+    {
+        print(Flasher.flasherGrid[i, j].NeighbourCount());
+    }
+
+    void ResetFlashes(int i, int j)
+    {
+        Flasher.flasherGrid[i, j].Reset();
+    }
+
+    void GetNumbers(int i, int j)
+    {
+        print(Flasher.flasherGrid[i, j].Stage());
+    }
+
+    void DoValidFlashes(int i, int j)
+    {
+        Flasher.flasherGrid[i, j].DoFlashIfOverStage9();
+    }
+
+    void AppendOutput(int i, int j)
+    {
+        D11DebugOutput.text = string.Concat(D11DebugOutput.text, Flasher.flasherGrid[i, j].Stage());
+    }
+}
+
+}
+
+// Dumbo octopus
+public class Flasher
+{
+int x, y;
+int stage = 1;
+bool flashed;
+public static int totalFlashes;
+List<Flasher> neighbours = new List<Flasher>(0);
+public static int sizeX, sizeY;
+public static Flasher[,] flasherGrid;
+
+public Flasher(int x, int y, int stage)
+{
+    this.stage = stage;
+    this.x = x;
+    this.y = y;
+    this.flashed = false;
+}
+
+public void GetNeighbours()
+{
+    // manual bounds checking
+    for (int yPos = -1; yPos < 2; yPos++)
+    {
+        for (int xPos = -1; xPos < 2; xPos++)
+        {
+            // do not include self
+            if (!(yPos == 0 && xPos == 0))
+            {
+                // bounds check
+                if (((0 <= (x + xPos)) && ((x + xPos) < sizeX)) && (0 <= ((y + yPos)) && ((y + yPos) < sizeY)))
+                {
+                    // get references to already initialized flashers
+                    neighbours.Add(flasherGrid[yPos + y, xPos + x]);
+                }
+            }
+        }
+    }
+}
+
+public string Stage()
+{
+    // print debugging:
+    // prints x if cell should flash but hasn't
+    // prints 0-9 for spec-like operation
+    if (stage > 9)
+    {
+        this.Flash();
+        return "x";
+    }
+    return stage.ToString();
+}
+
+public string NeighbourCount()
+{
+    return neighbours.Count.ToString();
+}
+
+public void AddPoint()
+{
+    if (!this.flashed)
+    {
+        this.stage++;
+    }
+}
+
+public void DoFlashIfOverStage9()
+{
+    if (this.stage > 9)
+    {
+        this.Flash();
+    }
+}
+
+private void Flash()
+{
+    this.flashed = true;
+    this.stage = 0;
+    totalFlashes++;
+
+    for (int i = 0; i < this.neighbours.Count; i++)
+    {
+        if (this.neighbours[i] != null)
+        {
+            this.neighbours[i].AddPoint();
+        }
+    }
+}
+
+public void Reset()
+{
+    flashed = false;
+}
+}
